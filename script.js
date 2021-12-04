@@ -24,13 +24,13 @@ function clickNumber() {
     let numberClicked = parseInt(convertNumberIdToNumberString(this.id));
     console.log("Number clicked: " + numberClicked);
 
-    // if you click an number after having just clicked a number, update display, but do no update calcValue
-    if (numberKeys.indexOf(lastButtonClicked) > -1) {
-        // THIS WILL HAVE ERROR WITH DOT I THINK??
-        updateScreen(Number(calculatorScreen.textContent + numberClicked.toString()));
+    // if you click an number after having just clicked a number, update display, but do not update calcValue
+    if (lastButtonClicked !== undefined && (lastWasNumberKey() || lastButtonClicked.id === "dot")) {
+        updateScreen(calculatorScreen.textContent + numberClicked.toString());
     } else {
         //update screen before doing operations but do not change calcValue
         updateScreen(numberClicked);
+        //console.log("else branch")
     }
 
     lastNumberClicked = this;
@@ -52,14 +52,14 @@ function clickOperator() {
         case "enter":
             enterClicked();
             break;
+        case "dot":
+            dotClicked();
+            break;
         default: // any other operator:
             // if an operator is clicked twice in a row
             if (lastWasOperatorKey()) {
                 //console.log("Last button clicked was an operator.")
-                if (operatorClickedId === "dot") {
-                    console.log("dot")
-                    // don't do anything yet
-                } else if (lastOperatorClicked.id !== "enter") {
+                if (lastOperatorClicked.id !== "enter") {
                     //finish calculation
                     console.log("Two operators in a row (last was not enter).")
                     calcValue = operate(lastOperatorClicked.id,calcValue,getDisplayValue());
@@ -74,7 +74,7 @@ function clickOperator() {
             } else if (lastWasNumberKey()) {
                 // if there was an operation before this number, do that calc and update the screen
                 // but if there was a clear, enter, or undefined, update calc value to display value
-                if (lastOperatorClicked === undefined || lastOperatorClicked.id === "enter" || lastOperatorClicked.id === "clear") {
+                if (lastOperatorClicked === undefined || lastOperatorClicked.id === "enter" || lastOperatorClicked.id === "clear" || lastOperatorClicked.id === "dot") {
                     calcValue = getDisplayValue();
                 } else {
                     calcValue = operate(lastOperatorClicked.id,calcValue,getDisplayValue());
@@ -91,7 +91,10 @@ function clickOperator() {
             break;
     }
 
-    lastOperatorClicked = this;
+    if (operatorClickedId !== "dot") {
+        // don't update if it is a dot
+        lastOperatorClicked = this;
+    }
     lastButtonClicked = this;
     logCurrentCalcValue();
 }
@@ -110,15 +113,11 @@ function multiply(a,b) {
 }
 
 function divide(a,b) {
-    return (b === 0 ? "ERROR" : a/b);
+    return (b === 0 ? "LMAYO" : a/b);
 }
 
 function clear() {
     return 0;
-}
-
-function dot(a,b) {
-    return parseFloat(a + "." + b);
 }
 
 function operate(operator,a,b) {
@@ -131,8 +130,6 @@ function operate(operator,a,b) {
             return multiply(a,b);
         case "divide":
             return divide(a,b);
-        case "dot":
-            return dot(a,b);
     }
 }
 
@@ -151,7 +148,12 @@ function logCurrentCalcValue() {
 }
 
 function updateScreen(value) {
-    if (!isNaN(value)) {
+    // if it's a number in string form and doesn't end in a period, convert it to a number
+    if (typeof value === "string") {//} && value[value.length - 1] === ".") {
+        // do not adjust
+    //} else if (typeof value === "string" && value[value.length - 1] === "0") {
+        // do not adjust
+    } else if (!isNaN(value) ) {
         value = Number(value.toFixed(MAX_DECIMALS));
     }
     calculatorScreen.textContent = value;
@@ -167,15 +169,49 @@ function lastWasOperatorKey() {
 }
 
 function enterClicked() {
-    if (lastOperatorClicked.id !== "enter" && lastWasNumberKey()) {
+    if (lastOperatorClicked === undefined) {
+        calcValue = getDisplayValue();
+        console.log("single enter");
+    } else if (lastOperatorClicked.id === "clear") {
+        calcValue = getDisplayValue();
+        console.log("single enter");
+    } else if (lastOperatorClicked.id !== "enter" && lastWasNumberKey()) {
         // if we hit enter, last operator was not enter, and last button was a number key
         calcValue = operate(lastOperatorClicked.id,calcValue,getDisplayValue());
-        console.log("EQUALS: Last operator clicked was " + lastOperatorClicked.id);
+        console.log("single enter")
         updateScreen(calcValue);
     } else if (lastOperatorClicked.id === "enter") {
         console.log("double enter")
         // set calc value to display value (wipe)
         calcValue = getDisplayValue();
-    // if two operators are clicked in a row:
+    } else {
+        console.log("not reachable enterClicked branch")
+    }
+}
+
+function dotClicked() {
+    if (lastWasOperatorKey() && lastOperatorClicked.id !== "clear" && lastOperatorClicked.id !== "enter") {
+        // dot doesnt get registered as operator, so if you clicked dot after operator, always treat like 0
+        updateScreen("0.");
+    } else if (lastWasOperatorKey()) {
+        if (getDisplayValue().toString().indexOf(".") < 0) {
+            // just add a dot to the display value
+            updateScreen(getDisplayValue() + ".");
+        } else {
+            // do nothing, you can't have multiple dots on screen
+            console.log("double dot");
+        }
+    } else if (lastWasNumberKey()) {
+        if (getDisplayValue().toString().indexOf(".") < 0) {
+            // just add a dot to the display value
+            updateScreen(getDisplayValue() + ".");
+        } else {
+            // do nothing, you can't have multiple dots on screen
+            console.log("double dot");
+        }
+    } else if (lastButtonClicked === undefined) {
+        updateScreen("0.");
+    } else {
+        console.log("jesus stop reaching these impossible branches.")
     }
 }
